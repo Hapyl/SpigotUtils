@@ -7,9 +7,9 @@ import org.bukkit.scoreboard.Scoreboard;
 
 public class ScoreboardBuilder {
 
-    private static Objective obj;
-    private static Scoreboard score;
-    private static int scoreLines;
+    private Objective obj;
+    private Scoreboard score;
+    private int scoreLines;
 
     /**
      * Constructor for Scoreboard.
@@ -30,17 +30,16 @@ public class ScoreboardBuilder {
             throw new IndexOutOfBoundsException("Lines is out of bounds. Max lines is " + ChatColor.ALL_CODES.length());
         }
 
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        obj = scoreboard.registerNewObjective(scoreName, "dummy");
+        score = Bukkit.getScoreboardManager().getNewScoreboard();
+        obj = score.registerNewObjective(scoreName, "dummy", "def");
         obj.setDisplayName(f(displayName));
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        for (int i = 1; i < lines; i++) {
-            scoreboard.registerNewTeam("line" + i).addEntry("§" + ChatColor.ALL_CODES.charAt(i));
+        for (int i = 1; i < (lines + 1); ++i) {
+            score.registerNewTeam("line" + i).addEntry("§" + ChatColor.ALL_CODES.charAt(i));
             obj.getScore("§" + ChatColor.ALL_CODES.charAt(i)).setScore(i);
         }
 
-        score = scoreboard;
         scoreLines = lines;
     }
 
@@ -48,9 +47,8 @@ public class ScoreboardBuilder {
      * Shows scoreboard to the player.
      * @param player who to show.
      */
-    public ScoreboardBuilder show(Player player) {
+    public void show(Player player) {
         player.setScoreboard(score);
-        return this;
     }
 
     /**
@@ -58,7 +56,7 @@ public class ScoreboardBuilder {
      * @param line line number.
      * @return String.
      */
-    public static String get(int line) {
+    public String get(int line) {
         if (score.getTeam("line" + line) != null) {
             return score.getTeam("line" + line).getSuffix();
         }
@@ -71,14 +69,13 @@ public class ScoreboardBuilder {
      * @param line line number.
      * @param text text to set. (Supports '&' char as color code.)
      */
-    public ScoreboardBuilder set(int line, String text) {
+    public void set(int line, String text) {
 
         if (line > scoreLines) {
             throw new IndexOutOfBoundsException("Scoreboard has only " + scoreLines + " lines. Given " + line + " line.");
         }
 
         score.getTeam("line" + line).setSuffix(f(text));
-        return this;
     }
 
     /**
@@ -97,9 +94,8 @@ public class ScoreboardBuilder {
      * By title it means DisplayName.
      * @param newTitle String.
      */
-    public ScoreboardBuilder updateTitle(String newTitle) {
+    public void updateTitle(String newTitle) {
         obj.setDisplayName(newTitle);
-        return this;
     }
 
     /**
