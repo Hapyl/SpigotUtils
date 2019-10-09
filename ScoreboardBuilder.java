@@ -24,7 +24,7 @@ public class ScoreboardBuilder {
      * @param displayName name that shows to players.
      * @param lines       how much line there will be. Max lines 16. Starts with 1.
      */
-    ScoreboardBuilder(String scoreName, String displayName, int lines) {
+    public ScoreboardBuilder(String scoreName, String displayName, int lines) {
 
         if (lines > ChatColor.ALL_CODES.length()) {
             throw new IndexOutOfBoundsException("Lines is out of bounds. Max lines is " + ChatColor.ALL_CODES.length());
