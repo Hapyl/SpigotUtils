@@ -1,3 +1,5 @@
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -12,6 +14,7 @@ import org.bukkit.inventory.meta.*;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -150,6 +153,7 @@ public class ItemBuilder {
      *
      * @param base64 base key.
      */
+    @Deprecated
     public ItemBuilder setBase64(String base64) {
 
         if (this.item.getType() == Material.PLAYER_HEAD) {
@@ -162,6 +166,31 @@ public class ItemBuilder {
 
     }
 
+    /**
+     * [!] Works only if item type is player head. [!]
+     * New method using reflection. Use this one 
+     * if setBase64() is not working.
+     *
+     * @param base64 base key.
+     */
+    public Item setHeadTexture(String base64) {
+
+        GameProfile profile = new GameProfile(UUID.randomUUID(), "");
+        profile.getProperties().put("textures", new Property("textures", base64));
+
+        try {
+
+            Field f = this.meta.getClass().getDeclaredField("profile");
+            f.setAccessible(true);
+            f.set(this.meta, profile);
+
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+        return this;
+    }
+    
     /**
      * [!] Works only if item type is player head. [!]
      * Sets skull owner.
