@@ -16,6 +16,9 @@ public class BlockBreakAnimation {
      * Allows to shows certain player animation of breaking
      * a block without break the block! (WOW)
      *
+     * Example:
+     *  new BlockBreakAnimation(block, 2).play(player); @ Play animation on block with 2nd stage for player
+     *
      * @param block BukkitBlock to break.
      * @param stage Stage it's just an animation.. take i think? Min 0, Max 9
      */
