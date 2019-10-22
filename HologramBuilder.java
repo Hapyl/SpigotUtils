@@ -5,6 +5,8 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
+import java.lang.reflect.InvocationTargetException;
+
 public class HologramBuilder implements Listener {
 
     private Object entity;
@@ -16,24 +18,25 @@ public class HologramBuilder implements Listener {
      * Constructor for HologramBuilder.
      * Allows to create invisible ArmorStand with Custom Name using packets!
      * [!] Tested on 1.14.4 [!] May not work on old versions. But still should work [!]
-     *
+     * <p>
      * Examples:
-     *  new HologramBuilder(player.getLocation(), "&cHello!").show(player); @ Creates Holo on player's location and showing it to player.
+     * new HologramBuilder(player.getLocation(), "&cHello!").show(player); @ Creates Holo on player's location and showing it to player.
      *
-     * @param loc Location.
+     * @param loc         Location.
      * @param displayName Name of the holo. Supports '&' as color char.
      */
     public HologramBuilder(Location loc, String displayName) {
         this.loc = loc;
         this.displayName = displayName;
+        build();
     }
 
     /**
      * Shows Holo to specific player.
+     *
      * @param player who to show.
      */
     public HologramBuilder show(Player player) {
-        build();
         try {
             sendPacket(player, getNetClass("PacketPlayOutSpawnEntityLiving").getConstructors()[1].newInstance(this.entity));
             return this;
@@ -45,6 +48,7 @@ public class HologramBuilder implements Listener {
 
     /**
      * Hides Holo from specific player.
+     *
      * @param player who to hide.
      */
     public HologramBuilder hide(Player player) {
@@ -55,6 +59,19 @@ public class HologramBuilder implements Listener {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public void setLocation(Location loc) {
+        try {
+            getNetClass("EntityArmorStand").getMethod("setLocation", double.class, double.class, double.class, float.class, float.class).invoke(this.entity, loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public Object getHologram() {
+        return this.entity;
     }
 
     /**
@@ -76,6 +93,16 @@ public class HologramBuilder implements Listener {
             e.printStackTrace();
         }
 
+    }
+
+    public int getId(Object entity) {
+        int i = -1;
+        try {
+            i = (int) getNetClass("Entity").getMethod("getId").invoke(entity);
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return i;
     }
 
     private static String version() {
@@ -120,5 +147,3 @@ public class HologramBuilder implements Listener {
             e.printStackTrace();
         }
     }
-
-}
