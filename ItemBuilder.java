@@ -1,3 +1,4 @@
+
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import org.bukkit.Bukkit;
@@ -15,25 +16,36 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.PatternSyntaxException;
 
-public class ItemBuilder {
+public final class ItemBuilder {
 
     private ItemStack item;
     private ItemMeta meta;
 
     /**
      * Constructor for ItemBuilder.
-     *
+     * <p>
      * Example:
-     *  new ItemBuilder(Material.STONE).setName("&7Stone").addLore("&7This stone is stone.____&cYes, it is.").build(); @ Creates an stone with name and lore.
+     * new ItemBuilder(Material.STONE).setName("&7Stone").addLore("&7This stone is stone.____&cYes, it is.").build(); @ Creates an stone with name and lore.
      *
      * @param material of item to create.
      */
     public ItemBuilder(Material material) {
         this.item = new ItemStack(material);
         this.meta = item.getItemMeta();
+    }
+
+    /**
+     * Constructor for ItemBuilder with existed ItemStack.
+     */
+    public ItemBuilder(ItemStack stack) {
+        this.item = stack;
+        this.meta = stack.getItemMeta();
     }
 
     /**
@@ -47,13 +59,81 @@ public class ItemBuilder {
     }
 
     /**
+     * Sets "smart" lore. Splits automatically after certain amount of worlds.
+     *
+     * @param lore      Lore
+     * @param separator Amount of chars to split after.
+     */
+    public ItemBuilder setSmartLore(String lore, final int separator) {
+        this.meta.setLore(splitAfter(lore, separator));
+        return this;
+    }
+
+    /**
      * Sets lore for the item.
      *
      * @param lore String. (Split lines using "__", also supports '&' as color code.)
      */
-    public ItemBuilder addLore(String lore) {
-        this.meta.setLore(Arrays.asList(f(lore).split("__")));
+    public ItemBuilder setLore(String lore) {
+        this.setLore(lore, "__");
         return this;
+    }
+
+    /**
+     * Adds lore to existed item.
+     *
+     * @param lore Lore to add
+     */
+    public ItemBuilder addLore(final String lore) {
+        if (this.meta.getLore() == null) this.setLore(lore);
+        else {
+            List<String> s = this.meta.getLore();
+            s.addAll(Arrays.asList(lore.split("__")));
+            this.meta.setLore(s);
+        }
+        return this;
+    }
+
+    /**
+     * Sets lore with custom separator. String will be split after separator.
+     *
+     * @param lore      Lore to add.
+     * @param separator <-
+     *                  [IMPORTANT] Don't use Java's regex chars like % or * etc, might throw exception!
+     */
+    public ItemBuilder setLore(final String lore, final String separator) {
+        try {
+            this.meta.setLore(Arrays.asList(colorize(lore).split(separator)));
+        } catch (PatternSyntaxException ex) {
+            Bukkit.getConsoleSender().sendMessage(colorize("&4[ERROR] &cChar &e" + separator + " &cused as separator for lore!"));
+        }
+        return this;
+    }
+
+    /**
+     * Removes lore.
+     */
+    public ItemBuilder removeLore() {
+        if (this.meta.getLore() != null)
+            this.meta.setLore(null);
+        return this;
+    }
+
+    /**
+     * Remove specific line from the lore.
+     *
+     * @param line line to remove.
+     */
+    public ItemBuilder removeLoreLine(int line) {
+
+        if (this.meta.getLore() == null) throw new NullPointerException("ItemMeta doesn't have any lore!");
+        if (line > this.meta.getLore().size())
+            throw new IndexOutOfBoundsException("ItemMeta has only " + this.meta.getLore().size() + " lines! Given " + line);
+        List<String> old = this.meta.getLore();
+        old.remove(line);
+        this.meta.setLore(old);
+        return this;
+
     }
 
     /**
@@ -62,15 +142,16 @@ public class ItemBuilder {
      * @param name String. (Supports '&' as color code.)
      */
     public ItemBuilder setName(String name) {
-        this.meta.setDisplayName(f(name));
+        this.meta.setDisplayName(colorize(name));
         return this;
     }
 
     /**
      * Adds an enchant to the item.
      * More than one enchants can be added.
+     *
      * @param ench Enchantment
-     * @param lvl Level of the enchantment.
+     * @param lvl  Level of the enchantment.
      */
     public ItemBuilder addEnchant(Enchantment ench, int lvl) {
         this.meta.addEnchant(ench, lvl, true);
@@ -104,10 +185,10 @@ public class ItemBuilder {
      * Adds potion meta to potion.
      * Supports only 1 potion effect. Will update it later to support multiple.
      *
-     * @param type Effect type.
-     * @param lvl Effect level.
+     * @param type     Effect type.
+     * @param lvl      Effect level.
      * @param duration Duration in ticks.
-     * @param color Color or the potion.
+     * @param color    Color or the potion.
      */
     public ItemBuilder setPotionMeta(PotionEffectType type, int lvl, int duration, Color color) {
 
@@ -129,46 +210,24 @@ public class ItemBuilder {
     /**
      * [!] Works only if item type is leather armor. [!]
      * Sets leather armor color.
+     *
      * @param color Color of the armor.
      */
     public ItemBuilder setLeatherArmorColor(Color color) {
-
-        Material m = this.item.getType();
-
+        final Material m = this.item.getType();
         if (m == Material.LEATHER_BOOTS || m == Material.LEATHER_CHESTPLATE || m == Material.LEATHER_LEGGINGS || m == Material.LEATHER_HELMET) {
 
             LeatherArmorMeta meta = (LeatherArmorMeta) this.meta;
             meta.setColor(color);
             return this;
         }
-
         return null;
 
     }
 
     /**
      * [!] Works only if item type is player head. [!]
-     * Allows to create custom head wih base64 value.
-     * You can get base64 value in minecraft-heads site, 2nd value from the end. The long random character value String.
-     *
-     * @param base64 base key.
-     */
-    @Deprecated
-    public ItemBuilder setBase64(String base64) {
-
-        if (this.item.getType() == Material.PLAYER_HEAD) {
-            UUID hash = new UUID(base64.hashCode(), base64.hashCode());
-            Bukkit.getUnsafe().modifyItemStack(this.item, "{SkullOwner:{Id:\"" + hash + "\",Properties:{textures:[{Value:\"" + base64 + "\"}]}}}");
-            return this;
-        }
-
-        return null;
-
-    }
-
-    /**
-     * [!] Works only if item type is player head. [!]
-     * New method using reflection. Use this one 
+     * New method using reflection. Use this one
      * if setBase64() is not working.
      *
      * @param base64 base key.
@@ -190,10 +249,11 @@ public class ItemBuilder {
 
         return this;
     }
-    
+
     /**
      * [!] Works only if item type is player head. [!]
      * Sets skull owner.
+     *
      * @param owner name of the player.
      */
     public ItemBuilder setSkullOwner(String owner) {
@@ -209,15 +269,13 @@ public class ItemBuilder {
     /**
      * Adds attribute to the item.
      *
-     * @param a Attribute to add.
-     * @param amount Amount in double.
+     * @param a         Attribute to add.
+     * @param amount    Amount in double.
      * @param operation Operation.
-     * @param slot Slot.
+     * @param slot      Slot.
      */
     public ItemBuilder addAttribute(Attribute a, double amount, AttributeModifier.Operation operation, EquipmentSlot slot) {
-
         this.meta.addAttributeModifier(a, new AttributeModifier(UUID.randomUUID(), a.toString(), amount, operation, slot));
-
         return this;
     }
 
@@ -251,17 +309,6 @@ public class ItemBuilder {
     }
 
     /**
-     * (DEPRECATED)
-     * Sets damage of the item.
-     * @param dura Dura
-     */
-    @Deprecated
-    public ItemBuilder setDamage(short dura) {
-        this.item.setDurability(dura);
-        return this;
-    }
-
-    /**
      * Build the item.
      * Must be executed as last argument.
      *
@@ -273,10 +320,32 @@ public class ItemBuilder {
     }
 
     /**
-     * Ignore this.
+     * Helpers.
      */
-    private String f(String s) {
+    private String colorize(String s) {
         return ChatColor.translateAlternateColorCodes('&', s);
+    }
+
+    // Not the best way to do this but whatever.
+    public static List<String> splitAfter(String text, int max) {
+        List<String> list = new ArrayList<>();
+        String line = "";
+        int counter = 0;
+        for (int i = 0; i < text.length(); i++) {
+
+            char c = text.charAt(i);
+            final boolean checkLast = c == text.charAt(text.length() - 1);
+            line = line.concat(c + "");
+            counter++;
+            if (counter >= max || i == text.length() - 1) {
+                if (c == ' ' || checkLast) {
+                    list.add(line.trim());
+                    line = "";
+                    counter = 0;
+                }
+            }
+        }
+        return list;
     }
 
 }
