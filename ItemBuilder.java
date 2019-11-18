@@ -173,7 +173,7 @@ public class ItemBuilder {
      *
      * @param base64 base key.
      */
-    public Item setHeadTexture(String base64) {
+    public ItemBuilder setHeadTexture(String base64) {
 
         GameProfile profile = new GameProfile(UUID.randomUUID(), "");
         profile.getProperties().put("textures", new Property("textures", base64));
