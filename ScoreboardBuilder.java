@@ -13,16 +13,16 @@ public class ScoreboardBuilder {
 
     /**
      * Constructor for Scoreboard.
-     *
+     * <p>
      * Examples:
-     *  ScoreboardBuilder score = new ScoreboardBuilder("mainScore", "&e&lMAIN SCOREBOARD", 5); @ Creates new scoreboard with 5 lines.
-     *  score.set(3, "&aThis text is cool!") @ Sets text on line 3 to "&aThis text is cool!".
-     *  Bukkit.getOnlinePlayers().forEach(player -> score.show(player)); @ Shows everyone one the server the scoreboard.
-     *  score.hide(Bukkit.getPlayerExact("hapyl")); @ Hides scoreboard for player with name "hapyl";
+     * ScoreboardBuilder score = new ScoreboardBuilder("mainScore", "&e&lMAIN SCOREBOARD", 5); @ Creates new scoreboard with 5 lines.
+     * score.set(3, "&aThis text is cool!") @ Sets text on line 3 to "&aThis text is cool!".
+     * Bukkit.getOnlinePlayers().forEach(player -> score.show(player)); @ Shows everyone one the server the scoreboard.
+     * score.hide(Bukkit.getPlayerExact("hapyl")); @ Hides scoreboard for player with name "hapyl";
      *
      * @param scoreName   name that scoreboard have in code.
      * @param displayName name that shows to players.
-     * @param lines       how much line there will be. Max lines 16. Starts with 1.
+     * @param lines       how much line there will be. Max lines 34. Starts with 1.
      */
     public ScoreboardBuilder(String scoreName, String displayName, int lines) {
 
@@ -45,6 +45,7 @@ public class ScoreboardBuilder {
 
     /**
      * Shows scoreboard to the player.
+     *
      * @param player who to show.
      */
     public void show(Player player) {
@@ -52,7 +53,38 @@ public class ScoreboardBuilder {
     }
 
     /**
+     * Adds a line to certain Scoreboard.
+     */
+    public void addLine() {
+        linesWorker(1);
+    }
+
+    /**
+     * Removes a line from certain scoreboard.
+     */
+    public void removeLine() {
+        linesWorker(-1);
+    }
+
+    /**
+     * Adds a line to certain scoreboard at certain position.
+     * @param line line that will be added. (Old lines will be shifted down)
+     */
+    public void addLineAt(int line) {
+        lineMover(line, 1);
+    }
+
+    /**
+     * Removed a line from certain scoreboard at certain position.
+     * @param line line that will be removed.
+     */
+    public void removeLineAt(int line) {
+        lineMover(line, -1);
+    }
+
+    /**
      * Returns current value of the line.
+     *
      * @param line line number.
      * @return String.
      */
@@ -66,20 +98,22 @@ public class ScoreboardBuilder {
     /**
      * Sets text for certain line.
      * If scoreboard doesn't have that line IndexOutBound will be thrown.
+     *
      * @param line line number.
      * @param text text to set. (Supports '&' char as color code.)
      */
     public void set(int line, String text) {
 
-        if (line > scoreLines) {
+        if (line > scoreLines)
             throw new IndexOutOfBoundsException("Scoreboard has only " + scoreLines + " lines. Given " + line + " line.");
-        }
+        if (line < 0) throw new IndexOutOfBoundsException("Scoreboard can't have less than 0 lines!");
 
         score.getTeam("line" + line).setSuffix(f(text));
     }
 
     /**
      * Hides scoreboard for player.
+     *
      * @param player who to hide.
      */
     public ScoreboardBuilder hide(Player player) {
@@ -92,10 +126,76 @@ public class ScoreboardBuilder {
     /**
      * Updates title for the scoreboard.
      * By title it means DisplayName.
+     *
      * @param newTitle String.
      */
     public void updateTitle(String newTitle) {
         obj.setDisplayName(newTitle);
+    }
+
+    /**
+     * Works with lines.
+     */
+    private void linesWorker(int value) {
+
+        ScoreboardBuilder dummy = rebuild(value);
+
+        for (int i = 1; i < this.scoreLines; ++i) {
+            dummy.set(i, this.get(i));
+        }
+
+        this.obj = dummy.obj;
+        this.score = dummy.score;
+        this.scoreLines = dummy.scoreLines;
+
+    }
+
+    /**
+     * Moves lines to make don't lose them.
+     */
+    private void lineMover(int line, int add) {
+
+        ScoreboardBuilder dummy = rebuild(add);
+
+        if (add >= 1) {
+            for (int i = 1; i < this.scoreLines + 1; ++i) {
+                if (i >= line) dummy.set(i + 1, this.get(i));
+                else dummy.set(i, this.get(i));
+            }
+        } else {
+            for (int i = this.scoreLines - 1; i > 0; --i) {
+                if (i < line) dummy.set(i, this.get(i));
+                else dummy.set(i, this.get(i + 1));
+            }
+        }
+
+        this.obj = dummy.obj;
+        this.score = dummy.score;
+        this.scoreLines = dummy.scoreLines;
+    }
+
+    /**
+     * Rebuilds a scoreboard.
+     */
+    private ScoreboardBuilder rebuild(int add) {
+        int result = this.scoreLines + add;
+        if (result < 0 || result > ChatColor.ALL_CODES.length())
+            throw new IndexOutOfBoundsException("Cannot have less than 0 or more than %%line%% lines!".replace("%%line%%", ChatColor.ALL_CODES.length() + ""));
+
+        final ScoreboardBuilder dummy = new ScoreboardBuilder(this.obj.getName(), this.obj.getDisplayName(), this.scoreLines + add);
+        reiterate(dummy);
+        return dummy;
+    }
+
+    /**
+     * Shows a new scoreboard to all players who has the old one (Update).
+     */
+    private void reiterate(ScoreboardBuilder newScore) {
+        Bukkit.getOnlinePlayers().forEach(player -> {
+            if (player.getScoreboard() == this.score) {
+                newScore.show(player);
+            }
+        });
     }
 
     /**
