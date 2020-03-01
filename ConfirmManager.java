@@ -128,7 +128,7 @@ public final class ConfirmManager implements Listener {
 
     private boolean checkExpiration() {
         if (this.expireLimitMillis != 0 && System.currentTimeMillis() - this.startedAt > expireLimitMillis) {
-            this.player.sendMessage(String.format(colorize("&cThis confirmation has expired!"), ChatColor.stripColor(this.message)));
+            this.player.sendMessage(colorize("&cThis confirmation has expired!"));
             confirmStorage.remove(this.player);
             return false;
         }
