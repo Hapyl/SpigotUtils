@@ -77,6 +77,13 @@ public final class CustomCraftingRecipe implements Listener, Runnable {
     }
 
     /**
+    * Method to change crafting block, leave as 'null' to remove crafting block.
+    */
+    public static void setCraftingBlock(final Material mat) {
+        CRAFTING_BLOCK = mat.isBlock() ? mat : null;
+    }
+    
+    /**
      * Constructor for creating a recipe.
      * Examples:
      * For examples see 'customrecipes.example' file
