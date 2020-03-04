@@ -462,7 +462,7 @@ public final class CustomCraftingRecipe implements Listener, Runnable {
                         if (recipe.permission != null) {
                             if (!player.hasPermission(recipe.permission)) {
                                 if (recipe.notifyPerm)
-                                    player.sendMessage(colorize("&cYou are missions '%s' permission to craft this item!", recipe.permission));
+                                    player.sendMessage(colorize("&cYou are missing '%s' permission to craft this item!", recipe.permission));
                                 return;
                             }
                         }
