@@ -1,3 +1,5 @@
+// Your package here //
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -6,6 +8,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class HologramBuilder implements Listener {
 
@@ -36,14 +40,29 @@ public class HologramBuilder implements Listener {
      *
      * @param player who to show.
      */
-    public HologramBuilder show(Player player) {
+    public void show(Player player) {
         try {
-            sendPacket(player, getNetClass("PacketPlayOutSpawnEntityLiving").getConstructors()[1].newInstance(this.entity));
-            return this;
+            sendPacket(player, getNetClass("PacketPlayOutSpawnEntityLiving").getConstructor(getNetClass("EntityLiving")).newInstance(this.entity));
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
         }
+    }
+
+    /**
+     * Shows holo to specific player for certain amount of ticks.
+     *
+     * @param player - Player to show.
+     * @param ticks  - Remove in.
+     */
+    public void showFor(Player player, int ticks) {
+        final HologramBuilder holo = this;
+        holo.show(player);
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                holo.hide(player);
+            }
+        }, ticks * 50);
     }
 
     /**
@@ -80,15 +99,20 @@ public class HologramBuilder implements Listener {
      */
     private void build() {
         try {
-            this.entity = getNetClass("EntityArmorStand").getConstructors()[0].newInstance(getNetWorld(this.loc.getWorld()), this.loc.getX(), this.loc.getY(), this.loc.getZ());
+
+            this.entity = getNetClass("EntityArmorStand").getConstructor(getNetClass("World"), double.class, double.class, double.class).newInstance(getNetWorld(this.loc.getWorld()), this.loc.getX(), this.loc.getY(), this.loc.getZ());
             this.id = (int) getNetClass("Entity").getMethod("getId").invoke(this.entity);
-            Class eC = getNetClass("Entity");
-            Class eA = getNetClass("EntityArmorStand");
-            eA.getDeclaredMethod("setMarker", boolean.class).invoke(this.entity, true);
-            eA.getDeclaredMethod("setSmall", boolean.class).invoke(this.entity, true);
-            eC.getDeclaredMethod("setInvisible", boolean.class).invoke(this.entity, true);
-            eC.getDeclaredMethod("setCustomNameVisible", boolean.class).invoke(this.entity, true);
-            eC.getDeclaredMethod("setCustomName", getNetClass("IChatBaseComponent")).invoke(this.entity, stringToIChat(this.displayName));
+
+            Class<?> entityClass = getNetClass("Entity");
+            Class<?> entityArmorStand = getNetClass("EntityArmorStand");
+
+            entityArmorStand.getDeclaredMethod("setMarker", boolean.class).invoke(this.entity, true);
+            entityArmorStand.getDeclaredMethod("setSmall", boolean.class).invoke(this.entity, true);
+
+            entityClass.getDeclaredMethod("setInvisible", boolean.class).invoke(this.entity, true);
+            entityClass.getDeclaredMethod("setCustomNameVisible", boolean.class).invoke(this.entity, true);
+            entityClass.getDeclaredMethod("setCustomName", getNetClass("IChatBaseComponent")).invoke(this.entity, stringToIChat(this.displayName));
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -96,13 +120,12 @@ public class HologramBuilder implements Listener {
     }
 
     public int getId(Object entity) {
-        int i = -1;
         try {
-            i = (int) getNetClass("Entity").getMethod("getId").invoke(entity);
+            return (int) getNetClass("Entity").getMethod("getId").invoke(entity);
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
+            return -1;
         }
-        return i;
     }
 
     private static String version() {
