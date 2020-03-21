@@ -1,3 +1,4 @@
+// Your package here //
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
@@ -70,6 +71,16 @@ public final class ItemBuilder {
     }
 
     /**
+     * Add another smart lore.
+     */
+    public ItemBuilder addSmartLore(String lore, final int splitAfter) {
+        final List<String> list = this.meta.hasLore() ? meta.getLore() : Lists.newArrayList();
+        list.addAll(splitAfter(lore, splitAfter));
+        this.meta.setLore(list);
+        return this;
+    }
+    
+    /**
      * Sets lore for the item.
      *
      * @param lore String. (Split lines using "__", also supports '&' as color code.)
@@ -85,12 +96,9 @@ public final class ItemBuilder {
      * @param lore Lore to add
      */
     public ItemBuilder addLore(final String lore) {
-        if (this.meta.getLore() == null) this.setLore(lore);
-        else {
-            List<String> s = this.meta.getLore();
-            s.addAll(Arrays.asList(lore.split("__")));
-            this.meta.setLore(s);
-        }
+        List<String> metaLore = this.meta.hasLore() ? this.meta.getLore() : Lists.newArrayList();
+        for (String value : lore.split("__")) metaLore.add(colorize(value));
+        this.meta.setLore(metaLore);
         return this;
     }
 
@@ -326,8 +334,7 @@ public final class ItemBuilder {
         return ChatColor.translateAlternateColorCodes('&', s);
     }
 
-    // Not the best way to do this but whatever.
-    public static List<String> splitAfter(String text, int max) {
+    public static List<String> splitAfter(String clr, String text, int max) {
         List<String> list = new ArrayList<>();
         String line = "";
         int counter = 0;
@@ -339,13 +346,17 @@ public final class ItemBuilder {
             counter++;
             if (counter >= max || i == text.length() - 1) {
                 if (c == ' ' || checkLast) {
-                    list.add(line.trim());
+                    list.add(ItemBuilder.colorize(clr + line.trim()));
                     line = "";
                     counter = 0;
                 }
             }
         }
         return list;
+    }
+
+    public static List<String> splitAfter(String text, int max) {
+        return splitAfter("&7", text, max);
     }
 
 }
