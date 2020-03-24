@@ -330,7 +330,7 @@ public final class ItemBuilder {
     /**
      * Helpers.
      */
-    private String colorize(String s) {
+    private static String colorize(String s) {
         return ChatColor.translateAlternateColorCodes('&', s);
     }
 
