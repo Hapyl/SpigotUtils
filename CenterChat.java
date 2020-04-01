@@ -1,3 +1,7 @@
+
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
@@ -5,11 +9,25 @@ public class CenterChat {
 
     /**
      * ORIGINAL: https://www.spigotmc.org/threads/free-code-sending-perfectly-centered-chat-message.95872/
+     * 
+     * Edit by hapyl:
+     * - Added clickable centered messages support.
      */
 
     private final static int CENTER_PX = 154;
 
     public static void sendCenteredMessage(Player player, String message) {
+        player.sendMessage(makeString(player, message));
+    }
+
+    public static void sendCenteredClickableMessage(Player player, String message, HoverEvent hover, ClickEvent click) {
+        final ComponentBuilder builder = new ComponentBuilder(makeString(player, message));
+        if (hover != null) builder.event(hover);
+        if (click != null) builder.event(click);
+        player.spigot().sendMessage(builder.create());
+    }
+
+    public static String makeString(Player player, String message) {
         if (message == null || message.equals("")) player.sendMessage("");
         message = ChatColor.translateAlternateColorCodes('&', message);
 
@@ -39,8 +57,10 @@ public class CenterChat {
             sb.append(" ");
             compensated += spaceLength;
         }
-        player.sendMessage(sb.toString() + message);
+
+        return sb.toString() + message;
     }
+
 
     enum DefaultFontInfo {
 
@@ -171,3 +191,4 @@ public class CenterChat {
     }
 
 }
+// :)
