@@ -1,4 +1,4 @@
-@@ Your package goes here!
+your package gose here
 
 import com.sun.scenario.effect.light.SpotLight;
 import org.bukkit.Bukkit;
@@ -173,14 +173,14 @@ public final class ChainSound {
             public void run() {
                 if (passed <= total) {
                     final BukkitSound currentSound = soundQueue.getOrDefault(passed, null);
-
-                    // if global enabled, reiterate players.
-                    if (reference.global) {
-                        reference.listeners.clear();
-                        listeners.addAll(Bukkit.getOnlinePlayers());
-                    }
-
                     if (currentSound != null) {
+
+                        // if global enabled, reiterate players.
+                        if (reference.global) {
+                            reference.listeners.clear();
+                            listeners.addAll(Bukkit.getOnlinePlayers());
+                        }
+
                         reference.listeners.iterator().forEachRemaining(player -> {
                             // this checks is player left during playing.
                             if (player != null) {
