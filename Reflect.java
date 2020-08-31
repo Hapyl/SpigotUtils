@@ -1,10 +1,7 @@
-package ru.hapyl.classesfight.utils;
+package goes.here
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
-import net.minecraft.server.v1_16_R1.EnumChatFormat;
-import net.minecraft.server.v1_16_R1.PacketPlayOutScoreboardTeam;
-import net.minecraft.server.v1_16_R1.ScoreboardTeam;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -16,8 +13,6 @@ import org.bukkit.entity.Skeleton;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
 import ru.hapyl.classesfight.ClassesFight;
 import ru.hapyl.classesfight.GarbageCollector;
 import ru.hapyl.classesfight.ScoreboardManager;
