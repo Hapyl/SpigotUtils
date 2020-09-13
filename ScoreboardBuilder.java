@@ -1,9 +1,11 @@
+
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 public class ScoreboardBuilder {
 
@@ -11,19 +13,6 @@ public class ScoreboardBuilder {
     private Scoreboard score;
     private int scoreLines;
 
-    /**
-     * Constructor for Scoreboard.
-     * <p>
-     * Examples:
-     * ScoreboardBuilder score = new ScoreboardBuilder("mainScore", "&e&lMAIN SCOREBOARD", 5); @ Creates new scoreboard with 5 lines.
-     * score.set(3, "&aThis text is cool!") @ Sets text on line 3 to "&aThis text is cool!".
-     * Bukkit.getOnlinePlayers().forEach(player -> score.show(player)); @ Shows everyone one the server the scoreboard.
-     * score.hide(Bukkit.getPlayerExact("hapyl")); @ Hides scoreboard for player with name "hapyl";
-     *
-     * @param scoreName   name that scoreboard have in code.
-     * @param displayName name that shows to players.
-     * @param lines       how much line there will be. Max lines 34. Starts with 1.
-     */
     public ScoreboardBuilder(String scoreName, String displayName, int lines) {
 
         if (lines > ChatColor.ALL_CODES.length()) {
@@ -32,7 +21,7 @@ public class ScoreboardBuilder {
 
         score = Bukkit.getScoreboardManager().getNewScoreboard();
         obj = score.registerNewObjective(scoreName, "dummy", "def");
-        obj.setDisplayName(f(displayName));
+        obj.setDisplayName(format(displayName));
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         for (int i = 1; i < (lines + 1); ++i) {
@@ -41,6 +30,43 @@ public class ScoreboardBuilder {
         }
 
         scoreLines = lines;
+        this.registerNoTagsTeam();
+    }
+
+    /**
+     * This register team that has team tags hidden.
+     *
+     * @return self
+     */
+    public ScoreboardBuilder registerNoTagsTeam() {
+        final Team team = this.score.registerNewTeam("noTagVis");
+        team.setCanSeeFriendlyInvisibles(true);
+        team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+        return this;
+    }
+
+    /**
+     * This hides names for every online player.
+     * this.registerNoTagsTeam required.
+     */
+    public void hideNames() {
+        final Team team = this.score.getTeam("noTagVis");
+        if (team == null) throw new IllegalStateException("Team not found!");
+        for (Player entry : Bukkit.getOnlinePlayers()) {
+            team.addEntry(entry.getName());
+        }
+    }
+
+    /**
+     * This shows names for every online player.
+     * this.registerNoTagsTeam required.
+     */
+    public void showNames() {
+        final Team team = this.score.getTeam("noTagVis");
+        if (team == null) throw new IllegalStateException("Team not found!");
+        for (String entry : team.getEntries()) {
+            team.removeEntry(entry);
+        }
     }
 
     /**
@@ -49,7 +75,7 @@ public class ScoreboardBuilder {
      * @param player who to show.
      */
     public void show(Player player) {
-        player.setScoreboard(score);
+        player.setScoreboard(this.score);
     }
 
     /**
@@ -68,6 +94,7 @@ public class ScoreboardBuilder {
 
     /**
      * Adds a line to certain scoreboard at certain position.
+     *
      * @param line line that will be added. (Old lines will be shifted down)
      */
     public void addLineAt(int line) {
@@ -75,7 +102,52 @@ public class ScoreboardBuilder {
     }
 
     /**
+     * Adds certain amount of lines at given line.
+     *
+     * @param lines - Amount of lines.
+     * @param at    - Initial line.
+     */
+    @Deprecated
+    public void addLinesAt(int lines, int at) {
+        for (int i = 0; i < lines; i++) {
+            addLineAt(at + i);
+        }
+    }
+
+    /**
+     * Removes certain amount of lines at given line.
+     *
+     * @param lines - Amount of lines.
+     * @param at    - Initial line.
+     */
+    @Deprecated
+    public void removeLinesAt(int lines, int at) {
+        for (int i = 0; i < lines; i++) {
+            removeLineAt(at + i);
+        }
+    }
+
+    /**
+     * Sets new amount of lines to the scoreboard.
+     *
+     * @param newLines - Amount of lines.
+     */
+    public void setLines(int newLines) {
+
+        ScoreboardBuilder builder = new ScoreboardBuilder(this.obj.getName(), this.obj.getDisplayName(), newLines);
+
+        this.reiterate(builder);
+
+        this.scoreLines = builder.scoreLines;
+        this.score = builder.score;
+        this.obj = builder.obj;
+
+    }
+
+
+    /**
      * Removed a line from certain scoreboard at certain position.
+     *
      * @param line line that will be removed.
      */
     public void removeLineAt(int line) {
@@ -104,11 +176,16 @@ public class ScoreboardBuilder {
      */
     public void set(int line, String text) {
 
-        if (line > scoreLines)
-            throw new IndexOutOfBoundsException("Scoreboard has only " + scoreLines + " lines. Given " + line + " line.");
-        if (line < 0) throw new IndexOutOfBoundsException("Scoreboard can't have less than 0 lines!");
+        if (line > scoreLines) {
+            Bukkit.getLogger().warning("Scoreboard has only " + scoreLines + " lines. Given " + line + " line.");
+            return;
+        }
+        if (line < 0) {
+            Bukkit.getLogger().warning("Scoreboard can't have less than 0 lines!");
+            return;
+        }
 
-        score.getTeam("line" + line).setSuffix(f(text));
+        score.getTeam("line" + line).setSuffix(format(text));
     }
 
     /**
@@ -178,6 +255,7 @@ public class ScoreboardBuilder {
      * Rebuilds a scoreboard.
      */
     private ScoreboardBuilder rebuild(int add) {
+
         int result = this.scoreLines + add;
         if (result < 0 || result > ChatColor.ALL_CODES.length())
             throw new IndexOutOfBoundsException("Cannot have less than 0 or more than %%line%% lines!".replace("%%line%%", ChatColor.ALL_CODES.length() + ""));
@@ -201,7 +279,7 @@ public class ScoreboardBuilder {
     /**
      * Just an util to translate char color. Ignore it.
      */
-    private static String f(String text) {
+    private static String format(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 }
