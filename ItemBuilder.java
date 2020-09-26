@@ -1,4 +1,4 @@
-// Your package here //
+you package goes here
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
@@ -22,28 +22,62 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.*;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import ru.hapyl.classesfight.GameManager;
+import ru.hapyl.classesfight.PlayerDatabase;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
 
 /**
  * This class used for building complex ItemStack easier.
  *
  * @author hapyl
- * @version 2.1
+ * @version 2.2
  */
 
 public final class ItemBuilder implements Listener {
 
+/** ----------[ Examples ]----------
+ *
+ * // Creates an Iron Hoe with Green name and gray lore.
+ *  final ItemStack hoe =
+ *          new ItemBuilder(Material.IRON_HOE)
+ *                  .setName("&aMy great hoe!")
+ *                  .setLore("&7This is a legendary hoe.")
+ *                  .build();
+ *
+ * // Creates a Diamond Hoe with Orange name click event for RIGHT CLICKING AIR, and sends the message whenever clicked.
+ *  final ItemStack coolerHoe =
+ *          new ItemBuilder(Material.DIAMOND_HOE)
+ *                  .setName("&6The cooler hoe!").setLore("")
+ *                  .addClickEvent(player -> player.sendMessage("You just clicked the cooler hoe!"), Action.RIGHT_CLICK_AIR)
+ *                  .build();
+ *
+ * // Creates a Netherite Hoe with Purple & Bold name and click event that sends message but with 60 ticks of cooldown, and sends error message whenever player has cooldown.
+ *  final ItemStack evenCoolerHoe =
+ *          new ItemBuilder(Material.NETHERITE_HOE)
+ *                  .setName("&5&lEVEN COOLER HOE")
+ *                  .setLore("&5The coolest hoe of the coolest hoes...")
+ *                  .withCooldown(60, player -> player.hasCooldown(Material.NETHERITE_HOE), "Wait for cooldown to end!")
+ *                  .addClickEvent(player -> player.sendMessage("You clicked even cooler hoe!"))
+ *                  .build();
+ *
+ *
+ *                  */
+
+
     /**
-     * Click event and Id System requires NBTEditor class!
-     * If you don't want them, just remove these methods and comment errors.
-     * https://github.com/Hapyl/SpigotUtils/blob/master/NBTEditor.java
-     * 
-     * Also, don't forget to register events for this class!
+     * Don't forget to register events for this class!
+     * Don't forget to register events for this class!
+     * Don't forget to register events for this class!
      */
 
     public static Map<String, ItemStack> holder = new HashMap<>();
@@ -51,11 +85,18 @@ public final class ItemBuilder implements Listener {
 
     private ItemStack item;
     private ItemMeta meta;
-    private String id;
+    private int cd;
+    private Predicate<Player> predicate;
+    private String id, error;
     private Set<ItemAction> functions = new HashSet<>();
 
-    public ItemBuilder() {
-        // for the event registration
+    private ItemBuilder() {
+        // use constructor down below to register events
+    }
+
+    // use this for event registration
+    public ItemBuilder(org.bukkit.plugin.Plugin javaPlugin) {
+        javaPlugin.getServer().getPluginManager().registerEvents(this, javaPlugin);
     }
 
     /**
@@ -69,8 +110,6 @@ public final class ItemBuilder implements Listener {
 
     /**
      * Creates an ItemStack from material and registers with ID.
-     * Requires NBTEditor to work.
-     * https://github.com/Hapyl/SpigotUtils/blob/master/NBTEditor.java
      *
      * @param material - Material.
      * @param id       - Unique Id.
@@ -91,8 +130,6 @@ public final class ItemBuilder implements Listener {
 
     /**
      * Creates an ItemStack from existing ItemStack and registers with ID.
-     * Requires NBTEditor to work.
-     * https://github.com/Hapyl/SpigotUtils/blob/master/NBTEditor.java
      *
      * @param stack - ItemStack.
      * @param id    - Unique Id.
@@ -107,6 +144,101 @@ public final class ItemBuilder implements Listener {
         this.item = stack;
         this.meta = stack.getItemMeta();
         this.id = id;
+    }
+
+    /**
+     * Static method for easier player head creation.
+     *
+     * @param texture - Base64 texture of the skins.
+     * @return - ItemBuilder.
+     */
+    public static ItemBuilder playerHead(String texture) {
+        return new ItemBuilder(Material.PLAYER_HEAD).setHeadTexture(texture);
+    }
+
+    /**
+     * Static method for easier leather armor creation.
+     *
+     * @param color - Color of the armor.
+     * @return - ItemBuilder.
+     */
+    public static ItemBuilder leatherHat(Color color) {
+        return new ItemBuilder(Material.LEATHER_HELMET).setLeatherArmorColor(color);
+    }
+
+    /**
+     * Static method for easier leather armor creation.
+     *
+     * @param color - Color of the armor.
+     * @return - ItemBuilder.
+     */
+    public static ItemBuilder leatherTunic(Color color) {
+        return new ItemBuilder(Material.LEATHER_CHESTPLATE).setLeatherArmorColor(color);
+    }
+
+    /**
+     * Static method for easier leather armor creation.
+     *
+     * @param color - Color of the armor.
+     * @return - ItemBuilder.
+     */
+    public static ItemBuilder leatherPants(Color color) {
+        return new ItemBuilder(Material.LEATHER_LEGGINGS).setLeatherArmorColor(color);
+    }
+
+    /**
+     * Static method for easier leather armor creation.
+     *
+     * @param color - Color of the armor.
+     * @return - ItemBuilder.
+     */
+    public static ItemBuilder leatherBoots(Color color) {
+        return new ItemBuilder(Material.LEATHER_BOOTS).setLeatherArmorColor(color);
+    }
+
+    /**
+     * Adds cooldown to the item, requires
+     * ClickEvent on the item to work.
+     *
+     * @param ticks - Ticks of cooldown.
+     * @return - ItemBuilder.
+     */
+    public ItemBuilder withCooldown(int ticks) {
+        withCooldown(ticks, null);
+        return this;
+    }
+
+    /**
+     * Adds cooldown to the item, requires
+     * ClickEvent on the item to work.
+     *
+     * @param ticks     - Ticks of cooldown.
+     * @param predicate - Predicate of player, if test
+     *                  failed, click event will not fire.
+     * @return ItemBuilder.
+     */
+    public ItemBuilder withCooldown(int ticks, Predicate<Player> predicate) {
+        withCooldown(ticks, predicate, "");
+        return this;
+    }
+
+    /**
+     * Adds cooldown to the item, requires
+     * ClickEvent on the item to work.
+     *
+     * @param ticks        - Ticks of cooldown.
+     * @param predicate    - Predicate of player, if test
+     *                     failed, click event will not fire.
+     * @param errorMessage - A string message that will
+     *                     be send to the player whenever
+     *                     predicate if failed.
+     * @return ItemBuilder.
+     */
+    public ItemBuilder withCooldown(int ticks, Predicate<Player> predicate, String errorMessage) {
+        this.predicate = predicate;
+        this.cd = ticks;
+        this.error = errorMessage;
+        return this;
     }
 
     /**
@@ -147,7 +279,7 @@ public final class ItemBuilder implements Listener {
      */
     @Nullable
     public static String getItemID(ItemStack item) {
-        return NBTEditor.getString(item, "custom_id");
+        return Editor.getString(item, "custom_id");
     }
 
     /**
@@ -321,8 +453,12 @@ public final class ItemBuilder implements Listener {
      * - Makes the item unbreakable
      * - Hides all flags.
      */
-    public ItemBuilder applyDefaultSetting() {
-        this.meta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
+    public ItemBuilder applyDefaultSettings() {
+        return applyDefaultSettings(true);
+    }
+
+    public ItemBuilder applyDefaultSettings(boolean applyCurse) {
+        if (applyCurse) this.meta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
         this.meta.setUnbreakable(true);
         this.meta.addItemFlags(ItemFlag.HIDE_DESTROYS, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_PLACED_ON, ItemFlag.HIDE_POTION_EFFECTS, ItemFlag.HIDE_UNBREAKABLE);
         return this;
@@ -511,6 +647,11 @@ public final class ItemBuilder implements Listener {
         return this;
     }
 
+    public ItemBuilder clearName() {
+        this.meta.setDisplayName("");
+        return this;
+    }
+
     /**
      * Sets the Item durability.
      *
@@ -548,7 +689,7 @@ public final class ItemBuilder implements Listener {
     public ItemStack build() {
         this.item.setItemMeta(this.meta);
         if (this.id != null) {
-            this.item = NBTEditor.set(item, this.id, "custom_id");
+            this.item = Editor.setItemTag(item, this.id, "custom_id");
             holder.put(this.id, this.item);
             if (!this.functions.isEmpty()) {
                 executableStorage.add(this);
@@ -562,15 +703,32 @@ public final class ItemBuilder implements Listener {
 
     // getters
 
+    /**
+     * Returns an item name or "" if none.
+     *
+     * @return - Item name.
+     */
     public String getName() {
         return this.meta.getDisplayName();
     }
 
+    /**
+     * Returns an item lore as list or strings.
+     *
+     * @return - Item lore.
+     */
     @Nullable
     public List<String> getLore() {
         return this.meta.getLore();
     }
 
+    /**
+     * Returns an item lore between lines.
+     *
+     * @param start - Start lore at line.
+     * @param end   - Stop lore at line.
+     * @return - Item lore.
+     */
     @Nullable
     public List<String> getLore(int start, int end) {
         final List<String> hash = new ArrayList<>();
@@ -585,26 +743,56 @@ public final class ItemBuilder implements Listener {
         return hash;
     }
 
+    /**
+     * Returns item amount.
+     *
+     * @return - Integer
+     */
     public int getAmount() {
         return this.item.getAmount();
     }
 
+    /**
+     * Returns item enchantments.
+     *
+     * @return - Map of Enchantment and Integer.
+     */
     public Map<Enchantment, Integer> getEnchants() {
         return this.meta.getEnchants();
     }
 
+    /**
+     * Returns true if item is unbreakable.
+     *
+     * @return - Boolean.
+     */
     public boolean isUnbreakable() {
         return this.meta.isUnbreakable();
     }
 
+    /**
+     * Returns item repair cost.
+     *
+     * @return - Integer.
+     */
     public int getRepairCost() {
         return ((Repairable) this.meta).getRepairCost();
     }
 
+    /**
+     * Returns item color if item is leather armor.
+     *
+     * @return - Color.
+     */
     public Color getLeatherColor() {
         return ((LeatherArmorMeta) this.meta).getColor();
     }
 
+    /**
+     * Returns head texture of the item if it is player head.
+     *
+     * @return - String.
+     */
     @Nullable
     public String getHeadTexture() {
         try {
@@ -615,20 +803,36 @@ public final class ItemBuilder implements Listener {
         }
     }
 
+    /**
+     * Returns item's flags.
+     *
+     * @return Set of ItemFlag.
+     */
     public Set<ItemFlag> getFlags() {
         return this.meta.getItemFlags();
     }
 
+    /**
+     * Returns attributes of the item.
+     *
+     * @return Multimap of Attribute and Modifier.
+     */
     public Multimap<Attribute, AttributeModifier> getAttributes() {
         return this.meta.getAttributeModifiers();
     }
 
+    /**
+     * Returns pure damage of the item.
+     *
+     * @return - Double.
+     */
     public double getPureDamage() {
-        double last = 0;
+        double most = 0;
         for (AttributeModifier t : getAttributes().get(Attribute.GENERIC_ATTACK_DAMAGE)) {
-            last = t.getAmount();
+            final double current = t.getAmount();
+            most = Math.max(current, most);
         }
-        return last;
+        return most;
     }
 
     private static List<String> splitAfter(String clr, String text, int max) {
@@ -672,7 +876,6 @@ public final class ItemBuilder implements Listener {
     }
 
     // this used for addClickEvent
-
     private static class ItemAction {
 
         private Set<Action> actions = new HashSet<>();
@@ -694,7 +897,7 @@ public final class ItemBuilder implements Listener {
     }
 
     @EventHandler
-    private void handleClick(PlayerInteractEvent ev) {
+    private static void handleClick(PlayerInteractEvent ev) {
 
         if (ev.getHand() == EquipmentSlot.OFF_HAND) return;
 
@@ -709,12 +912,585 @@ public final class ItemBuilder implements Listener {
                 if (builder.id.equals(getItemID(item))) {
                     final Set<ItemAction> functions = builder.functions;
                     for (ItemAction func : functions) {
-                        if (func.hasAction(action)) func.execute(player);
+                        if (func.hasAction(action)) {
+                            // cooldown check
+                            if (builder.cd > 0) {
+                                if (builder.predicate != null && builder.predicate.test(player)) {
+                                    if (!builder.error.isEmpty()) player.sendMessage(ChatColor.RED + builder.error);
+                                    continue;
+                                }
+                                if (player.hasCooldown(builder.item.getType())) {
+                                    continue;
+                                }
+                            }
+                            func.execute(player);
+                        }
                     }
                 }
             });
             hash.clear();
         }
     }
+
+
+    /**
+     * This code is taken from BananaPuncher714's NBTEditor
+     * with features that needed for IDs only. Get the
+     * original class down below. There is could be
+     * things that can be removed but im too lazy to
+     * test every thing.
+     * <p>
+     * Original Class:
+     * Github: https://github.com/BananaPuncher714/NBTEditor
+     * Spigot: https://www.spigotmc.org/threads/269621/
+     */
+
+    private static final class Editor {
+
+        private static final Map<String, Class<?>> classCache;
+        private static final Map<String, Method> methodCache;
+        private static final Map<Class<?>, Constructor<?>> constructorCache;
+        private static final Map<Class<?>, Class<?>> NBTClasses;
+        private static final Map<Class<?>, Field> NBTTagFieldCache;
+        private static Field NBTListData;
+        private static Field NBTCompoundMap;
+        private static final String VERSION;
+        private static final MinecraftVersion LOCAL_VERSION;
+
+        static {
+            VERSION = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
+            LOCAL_VERSION = MinecraftVersion.get(VERSION);
+
+            classCache = new HashMap<>();
+            try {
+                classCache.put("NBTBase", Class.forName("net.minecraft.server." + VERSION + "." + "NBTBase"));
+                classCache.put("NBTTagCompound", Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagCompound"));
+                classCache.put("NBTTagList", Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagList"));
+                classCache.put("MojangsonParser", Class.forName("net.minecraft.server." + VERSION + "." + "MojangsonParser"));
+
+                classCache.put("ItemStack", Class.forName("net.minecraft.server." + VERSION + "." + "ItemStack"));
+                classCache.put("CraftItemStack", Class.forName("org.bukkit.craftbukkit." + VERSION + ".inventory." + "CraftItemStack"));
+                classCache.put("CraftMetaSkull", Class.forName("org.bukkit.craftbukkit." + VERSION + ".inventory." + "CraftMetaSkull"));
+
+                classCache.put("GameProfile", Class.forName("com.mojang.authlib.GameProfile"));
+                classCache.put("Property", Class.forName("com.mojang.authlib.properties.Property"));
+                classCache.put("PropertyMap", Class.forName("com.mojang.authlib.properties.PropertyMap"));
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            NBTClasses = new HashMap<>();
+            try {
+                NBTClasses.put(Byte.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagByte"));
+                NBTClasses.put(Boolean.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagByte"));
+                NBTClasses.put(String.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagString"));
+                NBTClasses.put(Double.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagDouble"));
+                NBTClasses.put(Integer.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagInt"));
+                NBTClasses.put(Long.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagLong"));
+                NBTClasses.put(Short.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagShort"));
+                NBTClasses.put(Float.class, Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagFloat"));
+                NBTClasses.put(Class.forName("[B"), Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagByteArray"));
+                NBTClasses.put(Class.forName("[I"), Class.forName("net.minecraft.server." + VERSION + "." + "NBTTagIntArray"));
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            methodCache = new HashMap<>();
+            try {
+                methodCache.put("get", getNMSClass("NBTTagCompound").getMethod("get", String.class));
+                methodCache.put("set", getNMSClass("NBTTagCompound").getMethod("set", String.class, getNMSClass("NBTBase")));
+                methodCache.put("hasKey", getNMSClass("NBTTagCompound").getMethod("hasKey", String.class));
+                methodCache.put("setIndex", getNMSClass("NBTTagList").getMethod("a", int.class, getNMSClass("NBTBase")));
+                if (LOCAL_VERSION.greaterThanOrEqualTo(MinecraftVersion.v1_14)) {
+                    methodCache.put("getTypeId", getNMSClass("NBTBase").getMethod("getTypeId"));
+                    methodCache.put("add", getNMSClass("NBTTagList").getMethod("add", int.class, getNMSClass("NBTBase")));
+                } else {
+                    methodCache.put("add", getNMSClass("NBTTagList").getMethod("add", getNMSClass("NBTBase")));
+                }
+                methodCache.put("size", getNMSClass("NBTTagList").getMethod("size"));
+
+                if (LOCAL_VERSION == MinecraftVersion.v1_8) {
+                    methodCache.put("listRemove", getNMSClass("NBTTagList").getMethod("a", int.class));
+                } else {
+                    methodCache.put("listRemove", getNMSClass("NBTTagList").getMethod("remove", int.class));
+                }
+                methodCache.put("remove", getNMSClass("NBTTagCompound").getMethod("remove", String.class));
+
+                if (LOCAL_VERSION.greaterThanOrEqualTo(MinecraftVersion.v1_13)) {
+                    methodCache.put("getKeys", getNMSClass("NBTTagCompound").getMethod("getKeys"));
+                } else {
+                    methodCache.put("getKeys", getNMSClass("NBTTagCompound").getMethod("c"));
+                }
+
+                methodCache.put("hasTag", getNMSClass("ItemStack").getMethod("hasTag"));
+                methodCache.put("getTag", getNMSClass("ItemStack").getMethod("getTag"));
+                methodCache.put("setTag", getNMSClass("ItemStack").getMethod("setTag", getNMSClass("NBTTagCompound")));
+                methodCache.put("asNMSCopy", getNMSClass("CraftItemStack").getMethod("asNMSCopy", ItemStack.class));
+                methodCache.put("asBukkitCopy", getNMSClass("CraftItemStack").getMethod("asBukkitCopy", getNMSClass("ItemStack")));
+
+                methodCache.put("save", getNMSClass("ItemStack").getMethod("save", getNMSClass("NBTTagCompound")));
+
+                if (LOCAL_VERSION.lessThanOrEqualTo(MinecraftVersion.v1_10)) {
+                    methodCache.put("createStack", getNMSClass("ItemStack").getMethod("createStack", getNMSClass("NBTTagCompound")));
+                } else if (LOCAL_VERSION.greaterThanOrEqualTo(MinecraftVersion.v1_13)) {
+                    methodCache.put("createStack", getNMSClass("ItemStack").getMethod("a", getNMSClass("NBTTagCompound")));
+                }
+
+                methodCache.put("values", getNMSClass("PropertyMap").getMethod("values"));
+                methodCache.put("put", getNMSClass("PropertyMap").getMethod("put", Object.class, Object.class));
+
+                methodCache.put("loadNBTTagCompound", getNMSClass("MojangsonParser").getMethod("parse", String.class));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            try {
+                methodCache.put("getTileTag", getNMSClass("TileEntity").getMethod("save", getNMSClass("NBTTagCompound")));
+            } catch (NoSuchMethodException exception) {
+                try {
+                    methodCache.put("getTileTag", getNMSClass("TileEntity").getMethod("b", getNMSClass("NBTTagCompound")));
+                } catch (Exception exception2) {
+                    exception2.printStackTrace();
+                }
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
+
+            try {
+                methodCache.put("setProfile", getNMSClass("CraftMetaSkull").getDeclaredMethod("setProfile", getNMSClass("GameProfile")));
+                methodCache.get("setProfile").setAccessible(true);
+            } catch (NoSuchMethodException exception) {
+
+            }
+
+            constructorCache = new HashMap<>();
+            try {
+
+                constructorCache.put(getNBTTag(Byte.class), getNBTTag(Byte.class).getDeclaredConstructor(byte.class));
+                constructorCache.put(getNBTTag(Boolean.class), getNBTTag(Boolean.class).getDeclaredConstructor(byte.class));
+                constructorCache.put(getNBTTag(String.class), getNBTTag(String.class).getDeclaredConstructor(String.class));
+                constructorCache.put(getNBTTag(Double.class), getNBTTag(Double.class).getDeclaredConstructor(double.class));
+                constructorCache.put(getNBTTag(Integer.class), getNBTTag(Integer.class).getDeclaredConstructor(int.class));
+                constructorCache.put(getNBTTag(Long.class), getNBTTag(Long.class).getDeclaredConstructor(long.class));
+                constructorCache.put(getNBTTag(Float.class), getNBTTag(Float.class).getDeclaredConstructor(float.class));
+                constructorCache.put(getNBTTag(Short.class), getNBTTag(Short.class).getDeclaredConstructor(short.class));
+                constructorCache.put(getNBTTag(Class.forName("[B")), getNBTTag(Class.forName("[B")).getDeclaredConstructor(Class.forName("[B")));
+                constructorCache.put(getNBTTag(Class.forName("[I")), getNBTTag(Class.forName("[I")).getDeclaredConstructor(Class.forName("[I")));
+
+
+                for (Constructor<?> cons : constructorCache.values()) {
+                    cons.setAccessible(true);
+                }
+
+                constructorCache.put(getNMSClass("BlockPosition"), getNMSClass("BlockPosition").getConstructor(int.class, int.class, int.class));
+
+                constructorCache.put(getNMSClass("GameProfile"), getNMSClass("GameProfile").getConstructor(UUID.class, String.class));
+                constructorCache.put(getNMSClass("Property"), getNMSClass("Property").getConstructor(String.class, String.class));
+
+                if (LOCAL_VERSION == MinecraftVersion.v1_11 || LOCAL_VERSION == MinecraftVersion.v1_12) {
+                    constructorCache.put(getNMSClass("ItemStack"), getNMSClass("ItemStack").getConstructor(getNMSClass("NBTTagCompound")));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            NBTTagFieldCache = new HashMap<>();
+            try {
+                for (Class<?> clazz : NBTClasses.values()) {
+                    Field data = clazz.getDeclaredField("data");
+                    data.setAccessible(true);
+                    NBTTagFieldCache.put(clazz, data);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            try {
+                NBTListData = getNMSClass("NBTTagList").getDeclaredField("list");
+                NBTListData.setAccessible(true);
+                NBTCompoundMap = getNMSClass("NBTTagCompound").getDeclaredField("map");
+                NBTCompoundMap.setAccessible(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        private static Class<?> getNBTTag(Class<?> primitiveType) {
+            if (NBTClasses.containsKey(primitiveType))
+                return NBTClasses.get(primitiveType);
+            return primitiveType;
+        }
+
+        private static Object getNBTVar(Object object) {
+            if (object == null) {
+                return null;
+            }
+            Class<?> clazz = object.getClass();
+            try {
+                if (NBTTagFieldCache.containsKey(clazz)) {
+                    return NBTTagFieldCache.get(clazz).get(object);
+                }
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
+            return null;
+        }
+
+        private static Method getMethod(String name) {
+            return methodCache.getOrDefault(name, null);
+        }
+
+        private static Constructor<?> getConstructor(Class<?> clazz) {
+            return constructorCache.getOrDefault(clazz, null);
+        }
+
+        private static Class<?> getNMSClass(String name) {
+
+            if (classCache.containsKey(name)) {
+                return classCache.get(name);
+            }
+
+            try {
+                return Class.forName("net.minecraft.server." + VERSION + "." + name);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        public static String getVersion() {
+            return VERSION;
+        }
+
+        public static MinecraftVersion getMinecraftVersion() {
+            return LOCAL_VERSION;
+        }
+
+        private static Object getItemTag(ItemStack item, Object... keys) {
+            try {
+                return getTag(getCompound(item), keys);
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        private static Object getCompound(ItemStack item) {
+            if (item == null) {
+                return null;
+            }
+            try {
+
+                Object stack, tag;
+                stack = getMethod("asNMSCopy").invoke(null, item);
+
+                if (getMethod("hasTag").invoke(stack).equals(true)) {
+                    tag = getMethod("getTag").invoke(stack);
+                } else {
+                    tag = getNMSClass("NBTTagCompound").newInstance();
+                }
+
+                return tag;
+            } catch (Exception exception) {
+                exception.printStackTrace();
+                return null;
+            }
+        }
+
+        private static ItemStack setItemTag(ItemStack item, Object value, Object... keys) {
+            if (item == null) {
+                return null;
+            }
+            try {
+
+                Object stack = getMethod("asNMSCopy").invoke(null, item);
+                Object tag;
+
+                if (getMethod("hasTag").invoke(stack).equals(true)) {
+                    tag = getMethod("getTag").invoke(stack);
+                } else {
+                    tag = getNMSClass("NBTTagCompound").newInstance();
+                }
+
+                if (keys.length == 0 && value instanceof NBTCompound) {
+                    tag = ((NBTCompound) value).tag;
+                } else {
+                    setTag(tag, value, keys);
+                }
+
+                getMethod("setTag").invoke(stack, tag);
+                return (ItemStack) getMethod("asBukkitCopy").invoke(null, stack);
+            } catch (Exception exception) {
+                exception.printStackTrace();
+                return null;
+            }
+        }
+
+        private static Object getValue(Object object, Object... keys) {
+
+            if (object instanceof ItemStack) {
+                return getItemTag((ItemStack) object, keys);
+            } else if (object instanceof NBTCompound) {
+                try {
+                    return getTag(((NBTCompound) object).tag, keys);
+                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            } else {
+                throw new IllegalArgumentException("Object provided must be of type ItemStack, Entity, Block, or NBTCompound!");
+            }
+        }
+
+        public static String getString(Object object, Object... keys) {
+            Object result = getValue(object, keys);
+            return result instanceof String ? (String) result : null;
+        }
+
+        private static void setTag(Object tag, Object value, Object... keys) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+            Object notCompound;
+
+            if (value != null) {
+                if (value instanceof NBTCompound) {
+                    notCompound = ((NBTCompound) value).tag;
+                } else if (getNMSClass("NBTTagList").isInstance(value) || getNMSClass("NBTTagCompound").isInstance(value)) {
+                    notCompound = value;
+                } else {
+                    if (value instanceof Boolean) {
+                        value = (byte) ((Boolean) value ? 1 : 0);
+                    }
+                    notCompound = getConstructor(getNBTTag(value.getClass())).newInstance(value);
+                }
+            } else {
+                notCompound = null;
+            }
+
+            Object compound = tag;
+            for (int index = 0; index < keys.length - 1; index++) {
+                Object key = keys[index];
+                Object oldCompound = compound;
+                if (key instanceof Integer) {
+                    compound = ((List<?>) NBTListData.get(compound)).get((int) key);
+                } else if (key != null) {
+                    compound = getMethod("get").invoke(compound, (String) key);
+                }
+                if (compound == null || key == null) {
+                    if (keys[index + 1] == null || keys[index + 1] instanceof Integer) {
+                        compound = getNMSClass("NBTTagList").newInstance();
+                    } else {
+                        compound = getNMSClass("NBTTagCompound").newInstance();
+                    }
+                    if (oldCompound.getClass().getSimpleName().equals("NBTTagList")) {
+                        if (LOCAL_VERSION.greaterThanOrEqualTo(MinecraftVersion.v1_14)) {
+                            getMethod("add").invoke(oldCompound, getMethod("size").invoke(oldCompound), compound);
+                        } else {
+                            getMethod("add").invoke(oldCompound, compound);
+                        }
+                    } else {
+                        getMethod("set").invoke(oldCompound, (String) key, compound);
+                    }
+                }
+            }
+            if (keys.length > 0) {
+                Object lastKey = keys[keys.length - 1];
+                if (lastKey == null) {
+                    if (LOCAL_VERSION.greaterThanOrEqualTo(MinecraftVersion.v1_14)) {
+                        getMethod("add").invoke(compound, getMethod("size").invoke(compound), notCompound);
+                    } else {
+                        getMethod("add").invoke(compound, notCompound);
+                    }
+                } else if (lastKey instanceof Integer) {
+                    if (notCompound == null) {
+                        getMethod("listRemove").invoke(compound, (int) lastKey);
+                    } else {
+                        getMethod("setIndex").invoke(compound, (int) lastKey, notCompound);
+                    }
+                } else {
+                    if (notCompound == null) {
+                        getMethod("remove").invoke(compound, (String) lastKey);
+                    } else {
+                        getMethod("set").invoke(compound, (String) lastKey, notCompound);
+                    }
+                }
+            } else {
+                if (notCompound != null) {
+                }
+            }
+        }
+
+        private static NBTCompound getNBTTag(Object tag, Object... keys) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+            Object compound = tag;
+
+            for (Object key : keys) {
+                if (compound == null) {
+                    return null;
+                } else if (getNMSClass("NBTTagCompound").isInstance(compound)) {
+                    compound = getMethod("get").invoke(compound, (String) key);
+                } else if (getNMSClass("NBTTagList").isInstance(compound)) {
+                    compound = ((List<?>) NBTListData.get(compound)).get((int) key);
+                }
+            }
+            return new NBTCompound(compound);
+        }
+
+        private static Object getTag(Object tag, Object... keys) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+            if (keys.length == 0) {
+                return getTags(tag);
+            }
+
+            Object notCompound = tag;
+
+            for (Object key : keys) {
+                if (notCompound == null) {
+                    return null;
+                } else if (getNMSClass("NBTTagCompound").isInstance(notCompound)) {
+                    notCompound = getMethod("get").invoke(notCompound, (String) key);
+                } else if (getNMSClass("NBTTagList").isInstance(notCompound)) {
+                    notCompound = ((List<?>) NBTListData.get(notCompound)).get((int) key);
+                } else {
+                    return getNBTVar(notCompound);
+                }
+            }
+            if (notCompound == null) {
+                return null;
+            } else if (getNMSClass("NBTTagList").isInstance(notCompound)) {
+                return getTags(notCompound);
+            } else if (getNMSClass("NBTTagCompound").isInstance(notCompound)) {
+                return getTags(notCompound);
+            } else {
+                return getNBTVar(notCompound);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private static Object getTags(Object tag) {
+            Map<Object, Object> tags = new HashMap<>();
+            try {
+                if (getNMSClass("NBTTagCompound").isInstance(tag)) {
+                    Map<String, Object> tagCompound = (Map<String, Object>) NBTCompoundMap.get(tag);
+                    for (String key : tagCompound.keySet()) {
+                        Object value = tagCompound.get(key);
+                        if (getNMSClass("NBTTagEnd").isInstance(value)) {
+                            continue;
+                        }
+                        tags.put(key, getTag(value));
+                    }
+                } else if (getNMSClass("NBTTagList").isInstance(tag)) {
+                    List<Object> tagList = (List<Object>) NBTListData.get(tag);
+                    for (int index = 0; index < tagList.size(); index++) {
+                        Object value = tagList.get(index);
+                        if (getNMSClass("NBTTagEnd").isInstance(value)) {
+                            continue;
+                        }
+                        tags.put(index, getTag(value));
+                    }
+                } else {
+                    return getNBTVar(tag);
+                }
+                return tags;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return tags;
+            }
+        }
+
+        public static final class NBTCompound {
+
+            protected final Object tag;
+
+            protected NBTCompound(@Nonnull Object tag) {
+                this.tag = tag;
+            }
+
+            public void set(Object value, Object... keys) {
+                try {
+                    setTag(tag, value, keys);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            public String toJson() {
+                return tag.toString();
+            }
+
+            public static NBTCompound fromJson(String json) {
+                try {
+                    return new NBTCompound(getMethod("loadNBTTagCompound").invoke(null, json));
+                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            public String toString() {
+                return tag.toString();
+            }
+
+            @Override
+            public int hashCode() {
+                return tag.hashCode();
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (this == obj)
+                    return true;
+                if (obj == null)
+                    return false;
+                if (getClass() != obj.getClass())
+                    return false;
+                NBTCompound other = (NBTCompound) obj;
+                if (tag == null) {
+                    if (other.tag != null)
+                        return false;
+                } else if (!tag.equals(other.tag))
+                    return false;
+                return true;
+            }
+        }
+
+        public enum MinecraftVersion {
+            v1_8("1_8", 0),
+            v1_9("1_9", 1),
+            v1_10("1_10", 2),
+            v1_11("1_11", 3),
+            v1_12("1_12", 4),
+            v1_13("1_13", 5),
+            v1_14("1_14", 6),
+            v1_15("1_15", 7),
+            v1_16("1_16", 8),
+            v1_17("1_17", 9),
+            v1_18("1_18", 10),
+            v1_19("1_19", 11);
+
+            private int order;
+            private String key;
+
+            MinecraftVersion(String key, int v) {
+                this.key = key;
+                order = v;
+            }
+
+            public boolean greaterThanOrEqualTo(MinecraftVersion other) {
+                return order >= other.order;
+            }
+
+            public boolean lessThanOrEqualTo(MinecraftVersion other) {
+                return order <= other.order;
+            }
+
+            public static MinecraftVersion get(String v) {
+                for (MinecraftVersion k : MinecraftVersion.values()) {
+                    if (v.contains(k.key)) {
+                        return k;
+                    }
+                }
+                return null;
+            }
+        }
+    }
+
 
 }
