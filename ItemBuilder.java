@@ -1,4 +1,4 @@
-package kz.hapyl.amongblocks.util;
+package your.path.should.be.here;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
