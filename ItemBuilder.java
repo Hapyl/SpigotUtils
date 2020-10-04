@@ -1,4 +1,4 @@
-you package goes here
+package kz.hapyl.amongblocks.util;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
@@ -22,8 +22,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.*;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import ru.hapyl.classesfight.GameManager;
-import ru.hapyl.classesfight.PlayerDatabase;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -73,7 +71,6 @@ public final class ItemBuilder implements Listener {
  *
  *                  */
 
-
     /**
      * Don't forget to register events for this class!
      * Don't forget to register events for this class!
@@ -83,6 +80,7 @@ public final class ItemBuilder implements Listener {
     public static Map<String, ItemStack> holder = new HashMap<>();
     public static final Set<ItemBuilder> executableStorage = new HashSet<>();
 
+    private Map<String, Object> customNbt = new HashMap<>();
     private ItemStack item;
     private ItemMeta meta;
     private int cd;
@@ -116,6 +114,37 @@ public final class ItemBuilder implements Listener {
      */
     public ItemBuilder(Material material, String id) {
         this(new ItemStack(material), id);
+    }
+
+    /**
+     * Adds an nbt value just like 'custom_id' with custom path and value.
+     *
+     * @param path  - Path
+     * @param value - Value
+     */
+    public ItemBuilder addNbt(String path, Object value) {
+        customNbt.put(path, value);
+        return this;
+    }
+
+    /**
+     * Gets the value from provided path.
+     *
+     * @param path - Path
+     * @return - Value or null
+     */
+    public Object getValue(String path) {
+        return getNbtValue(this.item, path);
+    }
+
+    /**
+     * Gets a value from provided path of item.
+     *
+     * @param item - The Item
+     * @param path - Path
+     */
+    public static Object getNbtValue(ItemStack item, String path) {
+        return Editor.getItemTag(item, path);
     }
 
     /**
@@ -291,6 +320,10 @@ public final class ItemBuilder implements Listener {
      */
     public static boolean itemHasID(ItemStack item, String id) {
         return itemHasID(item) && getItemID(item).equals(id.toLowerCase());
+    }
+
+    public static boolean itemContainsId(ItemStack item, String id) {
+        return itemHasID(item) && getItemID(item).contains(id.toLowerCase());
     }
 
     /**
@@ -688,12 +721,17 @@ public final class ItemBuilder implements Listener {
      */
     public ItemStack build() {
         this.item.setItemMeta(this.meta);
+
         if (this.id != null) {
             this.item = Editor.setItemTag(item, this.id, "custom_id");
             holder.put(this.id, this.item);
             if (!this.functions.isEmpty()) {
                 executableStorage.add(this);
             }
+        }
+
+        if (!customNbt.isEmpty()) {
+            customNbt.forEach((a, b) -> this.item = Editor.setItemTag(item, b, a));
         }
 
         // This executes if there no Id and function added.
@@ -835,7 +873,8 @@ public final class ItemBuilder implements Listener {
         return most;
     }
 
-    private static List<String> splitAfter(String clr, String text, int max) {
+    private static List<String> splitAfter(String linePrefix, String text, int maxChars) {
+
         List<String> list = new ArrayList<>();
         String line = "";
         int counter = 0;
@@ -845,26 +884,24 @@ public final class ItemBuilder implements Listener {
             final boolean checkLast = c == text.charAt(text.length() - 1);
             line = line.concat(c + "");
             counter++;
-            if (counter >= max || i == text.length() - 1) {
+            // manual split
+            if (c == '_' && text.charAt(i + 1) == '_') {
+                list.add(colorize(linePrefix + line.substring(0, line.length() - 1).trim()));
+                line = "";
+                counter = 0;
+                i++;
+                continue;
+            }
+            if (counter >= maxChars || i == text.length() - 1) {
                 if (c == ' ' || checkLast) {
-                    list.add(ItemBuilder.colorize(clr + line.trim()));
+                    list.add(colorize(linePrefix + line.trim()));
                     line = "";
                     counter = 0;
                 }
             }
         }
 
-        // split for manual '__'
-        // don't really work that well, need to redo method
-        final List<String> strings = new ArrayList<>();
-        for (String str : list) {
-            final String[] splits = str.split("__");
-            for (String s : splits) {
-                strings.add(colorize(ChatColor.GRAY + s));
-            }
-        }
-
-        return strings;
+        return list;
     }
 
     private static List<String> splitAfter(String text, int max) {
@@ -1491,6 +1528,4 @@ public final class ItemBuilder implements Listener {
             }
         }
     }
-
-
 }
