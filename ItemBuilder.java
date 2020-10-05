@@ -38,7 +38,7 @@ import java.util.regex.PatternSyntaxException;
  * This class used for building complex ItemStack easier.
  *
  * @author hapyl
- * @version 2.2
+ * @version 2.4
  */
 
 public final class ItemBuilder implements Listener {
@@ -724,18 +724,20 @@ public final class ItemBuilder implements Listener {
 
         if (this.id != null) {
             this.item = Editor.setItemTag(item, this.id, "custom_id");
+            System.out.println("YES CUSTOM ID THERE IT IS YES?");
             holder.put(this.id, this.item);
             if (!this.functions.isEmpty()) {
                 executableStorage.add(this);
             }
         }
 
+        // This executes if there no Id and function added.
+        else if (!this.functions.isEmpty()) throw new IllegalArgumentException("ID is required to use this.");
+
         if (!customNbt.isEmpty()) {
             customNbt.forEach((a, b) -> this.item = Editor.setItemTag(item, b, a));
         }
 
-        // This executes if there no Id and function added.
-        else if (!this.functions.isEmpty()) throw new IllegalArgumentException("ID is required to use this.");
         return item;
     }
 
