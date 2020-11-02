@@ -724,7 +724,6 @@ public final class ItemBuilder implements Listener {
 
         if (this.id != null) {
             this.item = Editor.setItemTag(item, this.id, "custom_id");
-            System.out.println("YES CUSTOM ID THERE IT IS YES?");
             holder.put(this.id, this.item);
             if (!this.functions.isEmpty()) {
                 executableStorage.add(this);
