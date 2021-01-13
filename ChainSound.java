@@ -1,6 +1,3 @@
-your package gose here
-
-import com.sun.scenario.effect.light.SpotLight;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -9,15 +6,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.*;
 
 public final class ChainSound {
 
     private Plugin main;
-    private double xShift, yShift, zShift;
     private List<BukkitSound> sounds = new ArrayList<>();
-    private SoundCategory category = SoundCategory.MASTER;
     private Set<Player> listeners = new HashSet<>();
+    private SoundCategory category = SoundCategory.MASTER;
+    private double xShift, yShift, zShift;
     private boolean playing = false, global = false;
 
     /**
@@ -58,6 +59,16 @@ public final class ChainSound {
         return this;
     }
 
+    public ChainSound appendSameSound(Sound sound, float pitch, int... delays) {
+        if (delays.length < 2) {
+            throw new IndexOutOfBoundsException("must be at least 2 delays");
+        }
+        for (int delay : delays) {
+            this.append(sound, pitch, delay);
+        }
+        return this;
+    }
+
     /**
      * Alternative methods to add a sound to the chain.
      *
@@ -68,6 +79,12 @@ public final class ChainSound {
      */
     public ChainSound append(Sound sound, float pitch, int delay) {
         return this.append(new BukkitSound(sound, pitch, delay));
+    }
+
+    public ChainSound append(Sound sound, float pitch, int delay, Sound sound2) {
+        this.append(new BukkitSound(sound, pitch, delay));
+        this.append(new BukkitSound(sound2, pitch, delay));
+        return this;
     }
 
     /**
@@ -103,8 +120,9 @@ public final class ChainSound {
      *
      * @param player the listener
      */
-    public void addListener(final Player player) {
+    public ChainSound addListener(final Player player) {
         this.listeners.add(player);
+        return this;
     }
 
     /**
@@ -112,8 +130,9 @@ public final class ChainSound {
      *
      * @param players collection of player
      */
-    public void addListener(final Collection<Player> players) {
+    public ChainSound addListener(final Collection<Player> players) {
         this.listeners.addAll(players);
+        return this;
     }
 
     /**
@@ -121,8 +140,9 @@ public final class ChainSound {
      *
      * @param players array of player
      */
-    public void addListener(final Player... players) {
+    public ChainSound addListener(final Player... players) {
         this.listeners.addAll(Arrays.asList(players));
+        return this;
     }
 
     /**
@@ -135,6 +155,15 @@ public final class ChainSound {
         return this;
     }
 
+    public ChainSound removeListener(Player player) {
+        this.listeners.remove(player);
+        return this;
+    }
+
+    public ChainSound clearListeners() {
+        this.listeners.clear();
+        return this;
+    }
 
     /**
      * @return true if sounds is playing right now, false if not.
