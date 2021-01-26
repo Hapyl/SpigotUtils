@@ -960,6 +960,7 @@ public final class ItemBuilder implements Listener {
                                 if (player.hasCooldown(builder.item.getType())) {
                                     continue;
                                 }
+                                player.setCooldown(builder.item.getType(), builder.cd);
                             }
                             func.execute(player);
                         }
