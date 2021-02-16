@@ -1,0 +1,115 @@
+import com.sun.istack.internal.NotNull;
+import org.bukkit.ChatColor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.SimpleCommandMap;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
+
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+public class CommandProcessor {
+
+	private static final String processorVersion = "1.1";
+
+	private Plugin plugin;
+
+	private CommandProcessor() {
+
+	}
+
+	public CommandProcessor(Plugin plugin) {
+		this.plugin = plugin;
+	}
+
+	public void registerCommand(SimpleCommand simpleCommand) {
+		this.registerCommand0(new SimpleCommand[]{simpleCommand});
+	}
+
+	public void registerCommands(SimpleCommand... commands) {
+		this.registerCommand0(commands);
+	}
+
+	// 1.1 - reduced reflection call for array commands registration
+	// Pretty sure you still have to use reflection to do so
+	// if not, feel free to modify this code without ooflection
+	private void registerCommand0(@NotNull SimpleCommand[] array) {
+		try {
+			final PluginManager manager = this.plugin.getServer().getPluginManager();
+			final Class<? extends PluginManager> clazz = manager.getClass();
+			final Field field = clazz.getDeclaredField("commandMap");
+
+			field.setAccessible(true);
+			final SimpleCommandMap simpleMap = (SimpleCommandMap) field.get(manager);
+
+			if (array.length == 0) {
+				throw new IllegalArgumentException("There must be at least one command!");
+			}
+
+			for (final SimpleCommand cmd : array) {
+
+				if (simpleMap.getCommand(cmd.getName()) != null) {
+					throw new IllegalArgumentException(String.format("Command %s already registered!", cmd.getName()));
+				}
+
+				simpleMap.register(plugin.getName(),
+						new Command(cmd.getName(),
+								cmd.getDescription(),
+								cmd.getUsage(),
+								Arrays.asList(cmd.getAliases())) {
+
+							// Register Command
+							@Override
+							public boolean execute(CommandSender sender, String label, String[] args) {
+								if (cmd.isOnlyForPlayers() && !(sender instanceof Player)) {
+									/**
+									 * Error message if sender is not player and command allows only players.
+									 */
+									sender.sendMessage(ChatColor.RED + "You must be a player to use perform this command!");
+									return true;
+								}
+								if (sender.hasPermission(cmd.getPermission())) {
+									cmd.execute(sender, args);
+								}
+								else {
+									/**
+									 * Error message if sender does not have permission.
+									 */
+									sender.sendMessage(ChatColor.RED + "You must be admin to use this!");
+								}
+								return true;
+							}
+
+							// Register Tab Completer
+							@Override
+							public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+								if (cmd.isOnlyForPlayers() && !(sender instanceof Player)) {
+									return Collections.emptyList();
+								}
+								return cmd.tabComplete(sender, args);
+							}
+
+						});
+
+			}
+
+			field.setAccessible(false);
+		}
+		catch (Exception error) {
+			error.printStackTrace();
+		}
+	}
+
+	public static String getProcessorVersion() {
+		return processorVersion;
+	}
+
+	public static void checkForUpdate() {
+		throw new UnsupportedOperationException("not implemented yet");
+	}
+
+}
