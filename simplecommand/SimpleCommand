@@ -1,0 +1,152 @@
+import com.sun.istack.internal.NotNull;
+import org.bukkit.command.CommandSender;
+
+import java.util.*;
+
+public abstract class SimpleCommand {
+
+	private SimpleCommand() {
+		throw new NullPointerException();
+	}
+
+	private String name, permission, description, usage;
+	private String[] aliases;
+
+	private boolean allowOnlyPlayer;
+
+	/**
+	 * Creates a new simple command
+	 *
+	 * @param name - Name of the command.
+	 */
+	protected SimpleCommand(@NotNull String name) {
+		this.name = name;
+		this.aliases = new String[]{};
+		this.permission = "";
+		this.usage = "/" + name;
+		this.description = "Made using SimpleCommand made by hapyl";
+		this.allowOnlyPlayer = false;
+	}
+
+	/**
+	 * Executes the command
+	 *
+	 * @param sender - Who send the command, you can safely case sender to a player if setAllowOnlyPlayer(boolean flag) is used
+	 * @param args   - Arguments of the command
+	 */
+	protected abstract void execute(CommandSender sender, String[] args);
+
+	/**
+	 * Tab-Completes the command
+	 *
+	 * @param sender - Who send the command, you can safely case sender to a player if setAllowOnlyPlayer(boolean flag) is used
+	 * @param args   - Arguments of the command
+	 * @return Sorted list with valid arguments
+	 */
+	protected List<String> tabComplete(CommandSender sender, String[] args) {
+		return Collections.emptyList();
+	}
+
+	/**
+	 * Sets if command can only be executed by a player.
+	 *
+	 * @param flag - boolean flag
+	 */
+	protected void setAllowOnlyPlayer(boolean flag) {
+		this.allowOnlyPlayer = flag;
+	}
+
+	/**
+	 * Sets a description of the command.
+	 *
+	 * @param info - new description
+	 */
+	protected void setDescription(String info) {
+		this.description = info;
+	}
+
+	/**
+	 * Sets a command aliases.
+	 *
+	 * @param aliases - new aliases
+	 */
+	protected void setAliases(String... aliases) {
+		this.aliases = aliases;
+	}
+
+	/**
+	 * Sets a command permission
+	 *
+	 * @param permission - new permission
+	 */
+	protected void setPermission(String permission) {
+		this.permission = permission;
+	}
+
+	// Some useful utilities for ya.
+
+	/**
+	 * Sorts input list so there are only strings that can finish the string you are typing.
+	 *
+	 * @param list           - List to sort
+	 * @param args           - Command args
+	 * @param forceLowerCase - Forces input and args to be in lower case
+	 */
+	protected List<String> completerSort(List<String> list, String[] args, boolean forceLowerCase) {
+		final List<String> result = new ArrayList<>();
+		String latest = args[args.length - 1];
+		if (forceLowerCase) {
+			latest = latest.toLowerCase();
+		}
+		for (String str : list) {
+			if (forceLowerCase) {
+				str = str.toLowerCase();
+			}
+			if (str.startsWith(latest)) {
+				result.add(str);
+			}
+		}
+		return result;
+	}
+
+	protected List<String> completerSort(List<String> list, String[] args) {
+		return this.completerSort(list, args, true);
+	}
+
+	protected List<String> setToList(Set<String> set) {
+		return new ArrayList<>(set);
+	}
+
+	protected List<String> arrayToList(String[] array) {
+		final List<String> newList = new ArrayList<>(array.length);
+		Collections.addAll(newList, array);
+		return newList;
+	}
+
+	// end of utils
+
+	public boolean isOnlyForPlayers() {
+		return allowOnlyPlayer;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getPermission() {
+		return permission;
+	}
+
+	public String[] getAliases() {
+		return aliases;
+	}
+
+	public String getUsage() {
+		return usage;
+	}
+
+}
